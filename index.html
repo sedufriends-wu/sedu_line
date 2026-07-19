@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ลงทะเบียนเข้าใช้งาน LINE Official Account</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+  onerror="showFatal('โหลด LIFF SDK จาก static.line-scdn.net ไม่สำเร็จ (เน็ตช้า/ถูกบล็อก) กรุณาลองใหม่')"></script>
+<style>
+  :root{
+    --line-green:#06C755;
+    --line-green-dark:#05a648;
+    --bg:#f4f6f5;
+    --text:#222;
+    --muted:#777;
+    --danger:#e0483f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', 'Noto Sans Thai', 'Helvetica Neue', Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .header{
+    background:var(--line-green);
+    color:#fff;
+    padding:20px 16px 40px;
+    text-align:center;
+  }
+  .header h1{margin:0;font-size:18px;font-weight:700;}
+  .header p{margin:6px 0 0;font-size:13px;opacity:.9;}
+  .card{
+    background:#fff;
+    max-width:480px;
+    margin:-28px auto 24px;
+    border-radius:16px;
+    box-shadow:0 4px 16px rgba(0,0,0,.08);
+    padding:20px;
+  }
+  .profile{
+    display:flex;align-items:center;gap:12px;
+    padding-bottom:16px;margin-bottom:16px;
+    border-bottom:1px solid #eee;
+  }
+  .profile img{width:52px;height:52px;border-radius:50%;background:#ddd;object-fit:cover;}
+  .profile .name{font-weight:700;font-size:15px;}
+  .profile .sub{font-size:12px;color:var(--muted);}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px;}
+  .req{color:var(--danger);}
+  select, input[type=text], input[type=tel], input[type=email]{
+    width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;
+    font-size:14px;background:#fafafa;font-family:inherit;
+  }
+  select:focus, input:focus{outline:none;border-color:var(--line-green);background:#fff;}
+  .type-group{display:flex;gap:8px;}
+  .type-btn{
+    flex:1;text-align:center;padding:10px 4px;border:1.5px solid #ddd;
+    border-radius:10px;font-size:13px;font-weight:600;color:#666;
+    cursor:pointer;user-select:none;background:#fafafa;
+  }
+  .type-btn.active{border-color:var(--line-green);background:#e9fbf1;color:var(--line-green-dark);}
+  #yearLevelWrap{display:none;}
+  button#submitBtn{
+    width:100%;margin-top:22px;padding:14px;border:none;border-radius:12px;
+    background:var(--line-green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+  }
+  button#submitBtn:disabled{background:#a8dcbd;cursor:not-allowed;}
+  .msg{margin-top:14px;padding:12px;border-radius:10px;font-size:13px;text-align:center;display:none;}
+  .msg.success{background:#e9fbf1;color:var(--line-green-dark);display:block;}
+  .msg.error{background:#fdeceb;color:var(--danger);display:block;}
+  .loading{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+  .hidden{display:none !important;}
+  .loading .step{margin-top:8px;font-size:12px;color:#aaa;}
+  .loading .diag{
+    margin-top:18px;text-align:left;background:#fdeceb;color:#c0392b;
+    padding:12px;border-radius:10px;font-size:12px;line-height:1.6;
+    white-space:pre-wrap;word-break:break-word;display:none;
+  }
+  .loading .retry{
+    margin-top:14px;display:inline-block;padding:8px 18px;border-radius:8px;
+    background:var(--line-green);color:#fff;font-size:13px;font-weight:600;
+    cursor:pointer;display:none;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>ลงทะเบียนเข้าใช้งาน<br>LINE Official Account</h1>
+    <p>สำหรับนักศึกษา อาจารย์ และบุคลากร</p>
+  </div>
+
+  <div id="loadingBox" class="loading">
+    <div id="loadingText">กำลังเชื่อมต่อกับ LINE...</div>
+    <div class="step" id="stepText">กำลังโหลด LIFF SDK...</div>
+    <div class="diag" id="diagBox"></div>
+    <div class="retry" id="retryBtn" onclick="location.reload()">ลองใหม่อีกครั้ง</div>
+  </div>
+
+  <div id="mainCard" class="card hidden">
+    <div class="profile">
+      <img id="profilePic" src="" alt="profile">
+      <div>
+        <div class="name" id="profileName">-</div>
+        <div class="sub">บัญชี LINE ที่ใช้เปิดฟอร์มนี้</div>
+      </div>
+    </div>
+
+    <form id="regForm">
+      <label>ประเภทผู้ลงทะเบียน <span class="req">*</span></label>
+      <div class="type-group" id="typeGroup">
+        <div class="type-btn" data-value="นักศึกษา">นักศึกษา</div>
+        <div class="type-btn" data-value="อาจารย์">อาจารย์</div>
+        <div class="type-btn" data-value="บุคลากร">บุคลากร</div>
+      </div>
+
+      <label>ชื่อ-นามสกุล <span class="req">*</span></label>
+      <input type="text" id="fullName" placeholder="เช่น สมชาย ใจดี" required>
+
+      <label id="idCodeLabel">รหัสนักศึกษา / รหัสพนักงาน <span class="req">*</span></label>
+      <input type="text" id="idCode" placeholder="กรอกรหัส" required>
+
+      <div id="yearLevelWrap">
+        <label>ชั้นปี <span class="req">*</span></label>
+        <select id="yearLevel">
+          <option value="">-- เลือกชั้นปี --</option>
+          <option value="ปีที่ 1">ปีที่ 1</option>
+          <option value="ปีที่ 2">ปีที่ 2</option>
+          <option value="ปีที่ 3">ปีที่ 3</option>
+          <option value="ปีที่ 4">ปีที่ 4</option>
+          <option value="ปีที่ 5">ปีที่ 5</option>
+          <option value="อื่นๆ / บัณฑิตศึกษา">อื่นๆ / บัณฑิตศึกษา</option>
+        </select>
+      </div>
+
+      <label>สังกัด / คณะ / หน่วยงาน</label>
+      <input type="text" id="affiliation" placeholder="เช่น คณะวิศวกรรมศาสตร์">
+
+      <label>เบอร์โทรศัพท์</label>
+      <input type="tel" id="phone" placeholder="08x-xxx-xxxx">
+
+      <label>อีเมล</label>
+      <input type="email" id="email" placeholder="name@example.com">
+
+      <button type="submit" id="submitBtn">ลงทะเบียน</button>
+      <div id="msgBox" class="msg"></div>
+    </form>
+  </div>
+
+<script>
+  // ==== แก้ 2 ค่านี้ให้ตรงกับของจริงก่อนใช้งาน ====
+  const LIFF_ID = "YOUR_LIFF_ID_HERE";                 // จาก LINE Developers Console
+  const API_URL = "YOUR_APPS_SCRIPT_EXEC_URL_HERE";    // Web app URL ที่ลงท้าย /exec
+  // ================================================
+
+  let userProfile = null;
+  let selectedType = "";
+  let resolved = false;
+
+  function setStep(text) {
+    const el = document.getElementById('stepText');
+    if (el) el.innerText = text;
+  }
+
+  function showFatal(text, diagInfo) {
+    document.getElementById('loadingText').innerText = 'เกิดปัญหาในการเชื่อมต่อ';
+    document.getElementById('stepText').innerText = text;
+    document.getElementById('retryBtn').style.display = 'inline-block';
+    if (diagInfo) {
+      const box = document.getElementById('diagBox');
+      box.style.display = 'block';
+      box.innerText = diagInfo;
+    }
+  }
+
+  window.onerror = function (msg, url, line, col, err) {
+    if (resolved) return;
+    showFatal('เกิดข้อผิดพลาดขณะรันสคริปต์', 'JS error: ' + msg + '\nที่บรรทัด: ' + line + ':' + col);
+  };
+
+  const stuckTimer = setTimeout(function () {
+    if (resolved) return;
+    showFatal(
+      'เชื่อมต่อ LINE นานเกินไป (เกิน 12 วินาที)',
+      'ตรวจสอบตามนี้:\n' +
+      '1) LIFF_ID ในไฟล์นี้ถูกต้องหรือไม่\n' +
+      '2) Endpoint URL ของ LIFF App ต้องเป็น URL ของหน้านี้ (GitHub Pages) ไม่ใช่ Apps Script\n' +
+      '3) Channel ประเภท LINE Login ที่ผูกกับ LIFF App นี้ Publish แล้วหรือยัง\n' +
+      '4) เน็ตของเครื่อง/สัญญาณในแอป LINE ช้าหรือไม่'
+    );
+  }, 12000);
+
+  function initLiff() {
+    if (typeof liff === 'undefined') {
+      showFatal('โหลด LIFF SDK ไม่สำเร็จ', 'ตัวแปร liff ไม่ถูกสร้าง (สคริปต์จาก static.line-scdn.net โหลดไม่สำเร็จ)');
+      return;
+    }
+    if (!LIFF_ID || LIFF_ID === 'YOUR_LIFF_ID_HERE') {
+      showFatal('ยังไม่ได้ตั้งค่า LIFF_ID', 'แก้ตัวแปร LIFF_ID ในไฟล์ index-liff.html ให้เป็น LIFF ID จริง');
+      return;
+    }
+
+    setStep('กำลัง liff.init()...');
+    liff.init({ liffId: LIFF_ID })
+      .then(() => {
+        setStep('กำลังตรวจสอบสถานะล็อกอิน...');
+        if (!liff.isLoggedIn()) {
+          setStep('กำลังนำไปหน้าล็อกอิน LINE...');
+          liff.login();
+          return null;
+        }
+        setStep('กำลังดึงข้อมูลโปรไฟล์...');
+        return liff.getProfile();
+      })
+      .then((profile) => {
+        if (!profile) return;
+        resolved = true;
+        clearTimeout(stuckTimer);
+        userProfile = profile;
+        document.getElementById('profilePic').src = profile.pictureUrl || '';
+        document.getElementById('profileName').innerText = profile.displayName || '(ไม่พบชื่อ)';
+        document.getElementById('loadingBox').classList.add('hidden');
+        document.getElementById('mainCard').classList.remove('hidden');
+      })
+      .catch((err) => {
+        clearTimeout(stuckTimer);
+        showFatal(
+          'เชื่อมต่อ LINE ไม่สำเร็จ',
+          (err && err.message ? err.message : String(err)) +
+          '\n\nสาเหตุที่พบบ่อย: LIFF_ID ผิด / LIFF App ไม่ได้ผูกกับ Channel เดียวกับ LINE OA นี้ / ยังไม่ได้ติ๊ก Scope profile'
+        );
+      });
+  }
+
+  document.getElementById('typeGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.type-btn');
+    if (!btn) return;
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedType = btn.dataset.value;
+
+    const yearWrap = document.getElementById('yearLevelWrap');
+    const idLabel = document.getElementById('idCodeLabel');
+    if (selectedType === 'นักศึกษา') {
+      yearWrap.style.display = 'block';
+      idLabel.innerHTML = 'รหัสนักศึกษา <span class="req">*</span>';
+    } else {
+      yearWrap.style.display = 'none';
+      idLabel.innerHTML = 'รหัสพนักงาน/รหัสประจำตัว <span class="req">*</span>';
+    }
+  });
+
+  document.getElementById('regForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    if (!userProfile) {
+      showMsg('error', 'ไม่พบข้อมูลบัญชี LINE กรุณาลองเปิดฟอร์มใหม่อีกครั้ง');
+      return;
+    }
+    if (!selectedType) {
+      showMsg('error', 'กรุณาเลือกประเภทผู้ลงทะเบียน');
+      return;
+    }
+    if (!API_URL || API_URL === 'YOUR_APPS_SCRIPT_EXEC_URL_HERE') {
+      showMsg('error', 'ยังไม่ได้ตั้งค่า API_URL ในไฟล์นี้');
+      return;
+    }
+
+    const data = {
+      lineUserId: userProfile.userId,
+      displayName: userProfile.displayName,
+      pictureUrl: userProfile.pictureUrl,
+      userType: selectedType,
+      fullName: document.getElementById('fullName').value.trim(),
+      idCode: document.getElementById('idCode').value.trim(),
+      yearLevel: document.getElementById('yearLevel').value,
+      affiliation: document.getElementById('affiliation').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      email: document.getElementById('email').value.trim()
+    };
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = 'กำลังบันทึก...';
+
+    // Content-Type: text/plain เพื่อเลี่ยง CORS preflight (Apps Script ไม่รองรับ preflight)
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(data)
+    })
+      .then(res => res.json())
+      .then(res => {
+        btn.disabled = false;
+        btn.innerText = 'ลงทะเบียน';
+        if (res.status === 'error') {
+          showMsg('error', res.message);
+        } else {
+          showMsg('success', res.message);
+          setTimeout(() => {
+            if (liff.isInClient()) liff.closeWindow();
+          }, 2500);
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerText = 'ลงทะเบียน';
+        showMsg('error', 'เกิดข้อผิดพลาดในการส่งข้อมูล: ' + err.message);
+      });
+  });
+
+  function showMsg(type, text) {
+    const box = document.getElementById('msgBox');
+    box.className = 'msg ' + type;
+    box.innerText = text;
+  }
+
+  initLiff();
+</script>
+</body>
+</html>

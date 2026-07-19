@@ -82,6 +82,34 @@
     background:var(--line-green);color:#fff;font-size:13px;font-weight:600;
     cursor:pointer;display:none;
   }
+  .already-box{
+    text-align:center;
+    padding:8px 4px 4px;
+  }
+  .already-icon{
+    width:56px;height:56px;
+    margin:0 auto 14px;
+    border-radius:50%;
+    background:#e9fbf1;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .already-icon svg{width:30px;height:30px;}
+  .already-title{
+    font-size:16px;font-weight:700;color:var(--line-green-dark);
+    margin-bottom:4px;
+  }
+  .already-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+  .already-detail{
+    background:#fafafa;border:1px solid #eee;border-radius:12px;
+    padding:14px 16px;text-align:left;font-size:13px;line-height:2;
+    margin-bottom:18px;
+  }
+  .already-detail b{color:#444;font-weight:600;}
+  .edit-btn{
+    width:100%;padding:13px;border:1.5px solid var(--line-green);border-radius:12px;
+    background:#fff;color:var(--line-green-dark);font-size:14px;font-weight:700;
+    cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -107,7 +135,20 @@
       </div>
     </div>
 
-    <form id="regForm">
+    <div id="alreadyBox" class="already-box hidden">
+      <div class="already-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="11" fill="#06C755"/>
+          <path d="M7 12.5L10.2 15.7L17 8.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="already-title">มีข้อมูลของคุณอยู่ในระบบแล้ว</div>
+      <div class="already-sub">บัญชี LINE นี้เคยลงทะเบียนไว้เรียบร้อยแล้ว</div>
+      <div class="already-detail" id="alreadyDetail"></div>
+      <button type="button" id="editBtn" class="edit-btn">แก้ไขข้อมูลของฉัน</button>
+    </div>
+
+    <form id="regForm" class="hidden">
       <label>ประเภทผู้ลงทะเบียน <span class="req">*</span></label>
       <div class="type-group" id="typeGroup">
         <div class="type-btn" data-value="นักศึกษา">นักศึกษา</div>
@@ -214,14 +255,27 @@
         return liff.getProfile();
       })
       .then((profile) => {
-        if (!profile) return;
-        resolved = true;
-        clearTimeout(stuckTimer);
+        if (!profile) return null;
         userProfile = profile;
         document.getElementById('profilePic').src = profile.pictureUrl || '';
         document.getElementById('profileName').innerText = profile.displayName || '(ไม่พบชื่อ)';
+        setStep('กำลังตรวจสอบข้อมูลการลงทะเบียน...');
+        return fetch(API_URL + '?action=check&lineUserId=' + encodeURIComponent(profile.userId))
+          .then(res => res.json())
+          .catch(() => ({ status: 'error' })); // เช็กไม่ได้ก็ให้ไปกรอกฟอร์มใหม่ตามปกติ
+      })
+      .then((checkResult) => {
+        if (!userProfile) return; // กำลัง redirect ไป login อยู่
+        resolved = true;
+        clearTimeout(stuckTimer);
         document.getElementById('loadingBox').classList.add('hidden');
         document.getElementById('mainCard').classList.remove('hidden');
+
+        if (checkResult && checkResult.status === 'found') {
+          showAlreadyRegistered(checkResult.data);
+        } else {
+          document.getElementById('regForm').classList.remove('hidden');
+        }
       })
       .catch((err) => {
         clearTimeout(stuckTimer);
@@ -231,6 +285,47 @@
           '\n\nสาเหตุที่พบบ่อย: LIFF_ID ผิด / LIFF App ไม่ได้ผูกกับ Channel เดียวกับ LINE OA นี้ / ยังไม่ได้ติ๊ก Scope profile'
         );
       });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '-';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) +
+        ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return iso; }
+  }
+
+  function showAlreadyRegistered(data) {
+    const detail = document.getElementById('alreadyDetail');
+    detail.innerHTML =
+      '<div><b>ชื่อ-นามสกุล:</b> ' + (data.fullName || '-') + '</div>' +
+      '<div><b>ประเภท:</b> ' + (data.userType || '-') + '</div>' +
+      '<div><b>รหัส:</b> ' + (data.idCode || '-') + '</div>' +
+      (data.userType === 'นักศึกษา' ? '<div><b>ชั้นปี:</b> ' + (data.yearLevel || '-') + '</div>' : '') +
+      '<div><b>สังกัด/หน่วยงาน:</b> ' + (data.affiliation || '-') + '</div>' +
+      '<div><b>ลงทะเบียนเมื่อ:</b> ' + fmtDate(data.timestamp) + '</div>';
+    document.getElementById('alreadyBox').classList.remove('hidden');
+
+    document.getElementById('editBtn').onclick = function () {
+      document.getElementById('alreadyBox').classList.add('hidden');
+      document.getElementById('regForm').classList.remove('hidden');
+      prefillForm(data);
+    };
+  }
+
+  function prefillForm(data) {
+    document.getElementById('fullName').value = data.fullName || '';
+    document.getElementById('idCode').value = data.idCode || '';
+    document.getElementById('affiliation').value = data.affiliation || '';
+    document.getElementById('phone').value = data.phone || '';
+    document.getElementById('email').value = data.email || '';
+    document.getElementById('yearLevel').value = data.yearLevel || '';
+
+    if (data.userType) {
+      const btn = document.querySelector('.type-btn[data-value="' + data.userType + '"]');
+      if (btn) btn.click();
+    }
   }
 
   document.getElementById('typeGroup').addEventListener('click', (e) => {

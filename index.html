@@ -141,6 +141,7 @@
     box-shadow:0 0 0 3px rgba(184,0,0,.08);
   }
   #yearLevelWrap{display:none;}
+  #studentExtraWrap{display:none;}
 
   button#submitBtn{
     width:100%;margin-top:26px;padding:15px;border:none;border-radius:var(--radius-pill);
@@ -294,8 +295,23 @@
         </select>
       </div>
 
+      <div id="studentExtraWrap">
+        <label>เบอร์โทรศัพท์ฉุกเฉิน</label>
+        <input type="tel" id="emergencyPhone" inputmode="numeric" maxlength="10" placeholder="เบอร์ 10 หลัก">
+
+        <label>เบอร์โทรศัพท์ผู้ปกครอง</label>
+        <input type="tel" id="parentPhone" inputmode="numeric" maxlength="10" placeholder="เบอร์ 10 หลัก">
+
+        <label>อาจารย์ที่ปรึกษา</label>
+        <select id="advisorSelect">
+          <option value="">-- เลือกอาจารย์ที่ปรึกษา --</option>
+        </select>
+      </div>
+
       <label>สังกัด / คณะ / หน่วยงาน</label>
-      <input type="text" id="affiliation" placeholder="เช่น คณะวิศวกรรมศาสตร์">
+      <select id="affiliation">
+        <option value="">-- เลือกสังกัด/คณะ/หน่วยงาน --</option>
+      </select>
 
       <label>เบอร์โทรศัพท์</label>
       <input type="tel" id="phone" placeholder="08x-xxx-xxxx">
@@ -318,6 +334,7 @@
   let userProfile = null;
   let selectedType = "";
   let resolved = false;
+  let formOptions = { advisors: [], departments: [] };
 
   function setStep(text) {
     const el = document.getElementById('stepText');
@@ -380,12 +397,20 @@
         document.getElementById('profilePic').src = profile.pictureUrl || '';
         document.getElementById('profileName').innerText = profile.displayName || '(ไม่พบชื่อ)';
         setStep('กำลังตรวจสอบข้อมูลการลงทะเบียน...');
-        return fetch(API_URL + '?action=check&lineUserId=' + encodeURIComponent(profile.userId))
-          .then(res => res.json())
-          .catch(() => ({ status: 'error' })); // เช็กไม่ได้ก็ให้ไปกรอกฟอร์มใหม่ตามปกติ
+        return Promise.all([
+          fetch(API_URL + '?action=check&lineUserId=' + encodeURIComponent(profile.userId))
+            .then(res => res.json())
+            .catch(() => ({ status: 'error' })), // เช็กไม่ได้ก็ให้ไปกรอกฟอร์มใหม่ตามปกติ
+          fetch(API_URL + '?action=formOptions')
+            .then(res => res.json())
+            .catch(() => ({ advisors: [], departments: [] }))
+        ]);
       })
-      .then((checkResult) => {
+      .then((results) => {
         if (!userProfile) return; // กำลัง redirect ไป login อยู่
+        const checkResult = results[0];
+        applyFormOptions(results[1]);
+
         resolved = true;
         clearTimeout(stuckTimer);
         document.getElementById('loadingBox').classList.add('hidden');
@@ -434,6 +459,34 @@
     };
   }
 
+  function populateSelect(selectEl, options, placeholder) {
+    selectEl.innerHTML = '';
+    const ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = placeholder;
+    selectEl.appendChild(ph);
+    options.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.value;
+      o.textContent = opt.text;
+      selectEl.appendChild(o);
+    });
+  }
+
+  function applyFormOptions(opts) {
+    formOptions = opts || { advisors: [], departments: [] };
+    populateSelect(
+      document.getElementById('advisorSelect'),
+      (formOptions.advisors || []).map(a => ({ value: a.personId, text: a.name })),
+      '-- เลือกอาจารย์ที่ปรึกษา --'
+    );
+    populateSelect(
+      document.getElementById('affiliation'),
+      (formOptions.departments || []).map(d => ({ value: d, text: d })),
+      '-- เลือกสังกัด/คณะ/หน่วยงาน --'
+    );
+  }
+
   function prefillForm(data) {
     document.getElementById('fullName').value = data.fullName || '';
     document.getElementById('idCode').value = data.idCode || '';
@@ -441,6 +494,9 @@
     document.getElementById('phone').value = data.phone || '';
     document.getElementById('email').value = data.email || '';
     document.getElementById('yearLevel').value = data.yearLevel || '';
+    document.getElementById('emergencyPhone').value = data.emergencyPhone || '';
+    document.getElementById('parentPhone').value = data.parentPhone || '';
+    document.getElementById('advisorSelect').value = data.advisorId || '';
 
     if (data.userType) {
       const btn = document.querySelector('.type-btn[data-value="' + data.userType + '"]');
@@ -456,12 +512,15 @@
     selectedType = btn.dataset.value;
 
     const yearWrap = document.getElementById('yearLevelWrap');
+    const studentExtraWrap = document.getElementById('studentExtraWrap');
     const idLabel = document.getElementById('idCodeLabel');
     if (selectedType === 'นักศึกษา') {
       yearWrap.style.display = 'block';
+      studentExtraWrap.style.display = 'block';
       idLabel.innerHTML = 'รหัสนักศึกษา <span class="req">*</span>';
     } else {
       yearWrap.style.display = 'none';
+      studentExtraWrap.style.display = 'none';
       idLabel.innerHTML = 'รหัสพนักงาน/รหัสประจำตัว <span class="req">*</span>';
     }
   });
@@ -482,6 +541,23 @@
       return;
     }
 
+    const emergencyPhone = document.getElementById('emergencyPhone').value.trim();
+    const parentPhone = document.getElementById('parentPhone').value.trim();
+    if (selectedType === 'นักศึกษา') {
+      if (emergencyPhone && !/^[0-9]{10}$/.test(emergencyPhone)) {
+        showMsg('error', 'เบอร์โทรศัพท์ฉุกเฉินต้องเป็นตัวเลข 10 หลัก');
+        return;
+      }
+      if (parentPhone && !/^[0-9]{10}$/.test(parentPhone)) {
+        showMsg('error', 'เบอร์โทรศัพท์ผู้ปกครองต้องเป็นตัวเลข 10 หลัก');
+        return;
+      }
+    }
+
+    const advisorSelect = document.getElementById('advisorSelect');
+    const advisorId = advisorSelect.value;
+    const advisorName = advisorSelect.selectedIndex > 0 ? advisorSelect.options[advisorSelect.selectedIndex].text : '';
+
     const data = {
       lineUserId: userProfile.userId,
       displayName: userProfile.displayName,
@@ -490,9 +566,13 @@
       fullName: document.getElementById('fullName').value.trim(),
       idCode: document.getElementById('idCode').value.trim(),
       yearLevel: document.getElementById('yearLevel').value,
-      affiliation: document.getElementById('affiliation').value.trim(),
+      affiliation: document.getElementById('affiliation').value,
       phone: document.getElementById('phone').value.trim(),
-      email: document.getElementById('email').value.trim()
+      email: document.getElementById('email').value.trim(),
+      emergencyPhone: emergencyPhone,
+      parentPhone: parentPhone,
+      advisorId: advisorId,
+      advisorName: advisorName
     };
 
     const btn = document.getElementById('submitBtn');

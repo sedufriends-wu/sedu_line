@@ -133,6 +133,17 @@
   input.locked:focus{box-shadow:none;border-color:var(--border);}
   .lock-note{font-weight:400;color:var(--muted);font-size:12px;}
 
+  /* ---------- Missing-field highlight ---------- */
+  input.field-error, select.field-error{
+    border-color:var(--danger);background:var(--danger-bg);
+    box-shadow:0 0 0 3px rgba(192,57,43,.12);
+  }
+  #typeGroup.field-error .type-btn{border-color:var(--danger);background:var(--danger-bg);}
+  .ss-wrap.field-error input{
+    border-color:var(--danger);background:var(--danger-bg);
+    box-shadow:0 0 0 3px rgba(192,57,43,.12);
+  }
+
   /* ---------- Searchable select (combobox) ---------- */
   .ss-wrap{position:relative;}
   .ss-list{
@@ -390,6 +401,19 @@
   }
 
   /**
+   * เมื่อกดบันทึกแล้วพบฟิลด์ที่ยังไม่ได้กรอก/เลือก ให้ไฮไลต์ขอบสีแดงและเลื่อนหน้าจอไปหา
+   * ฟิลด์นั้นทันที (ข้อความแจ้งเตือนอย่างเดียวอาจมองไม่เห็นถ้าฟิลด์ที่ผิดอยู่บนสุดของฟอร์มยาวๆ)
+   */
+  function clearFieldErrors() {
+    document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+  }
+  function markFieldError(target) {
+    clearFieldErrors();
+    target.classList.add('field-error');
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  /**
    * สร้าง select แบบพิมพ์ค้นหาได้ (combobox) จาก input + hidden input + กล่องรายการ
    * เก็บ "ค่า" ไว้ใน hidden input และ "ข้อความที่แสดง" ไว้ใน input ที่มองเห็น
    * ต้องเลือกจากรายการเท่านั้นถึงจะมีค่า — พิมพ์เฉยๆ ไม่ตรงกับตัวเลือกจะไม่ถือว่ากรอกแล้ว
@@ -418,6 +442,7 @@
             e.preventDefault(); // กัน input เสีย focus ก่อน click จะทำงาน
             hidden.value = it.value;
             input.value = it.text;
+            input.closest('.ss-wrap').classList.remove('field-error');
             closeList();
           });
           list.appendChild(row);
@@ -433,6 +458,7 @@
     input.addEventListener('focus', function () { renderList(input.value); });
     input.addEventListener('input', function () {
       hidden.value = ''; // พิมพ์ใหม่ = ยังไม่ได้เลือก ต้องเลือกจาก list เท่านั้น
+      input.closest('.ss-wrap').classList.remove('field-error');
       renderList(input.value);
     });
     input.addEventListener('blur', function () {
@@ -607,6 +633,13 @@
     }
   }
 
+  // เคลียร์ไฮไลต์ขอบแดงทันทีที่ผู้ใช้เริ่มแก้ไขฟิลด์ธรรมดา
+  ['fullName', 'idCode', 'yearLevel', 'phone', 'email', 'emergencyPhone', 'parentPhone'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => el.classList.remove('field-error'));
+    el.addEventListener('change', () => el.classList.remove('field-error'));
+  });
+
   const idCodeInput = document.getElementById('idCode');
   idCodeInput.addEventListener('input', function () {
     if (selectedType === 'นักศึกษา') {
@@ -620,6 +653,7 @@
     document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     selectedType = btn.dataset.value;
+    document.getElementById('typeGroup').classList.remove('field-error');
 
     const yearWrap = document.getElementById('yearLevelWrap');
     const studentExtraWrap = document.getElementById('studentExtraWrap');
@@ -638,6 +672,7 @@
 
   document.getElementById('regForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    clearFieldErrors();
 
     if (!userProfile) {
       showMsg('error', 'ไม่พบข้อมูลบัญชี LINE กรุณาลองเปิดฟอร์มใหม่อีกครั้ง');
@@ -645,6 +680,7 @@
     }
     if (!selectedType) {
       showMsg('error', 'กรุณาเลือกประเภทผู้ลงทะเบียน');
+      markFieldError(document.getElementById('typeGroup'));
       return;
     }
     if (!API_URL || API_URL === 'YOUR_APPS_SCRIPT_EXEC_URL_HERE') {
@@ -668,59 +704,73 @@
 
     if (!fullName) {
       showMsg('error', 'กรุณากรอกชื่อ-นามสกุล');
+      markFieldError(document.getElementById('fullName'));
       return;
     }
     if (!idCode) {
       showMsg('error', 'กรุณากรอก' + (selectedType === 'นักศึกษา' ? 'รหัสนักศึกษา' : 'รหัสพนักงาน/รหัสประจำตัว'));
+      markFieldError(document.getElementById('idCode'));
       return;
     }
     if (selectedType === 'นักศึกษา' && !/^[0-9]+$/.test(idCode)) {
       showMsg('error', 'รหัสนักศึกษาต้องกรอกเป็นตัวเลขเท่านั้น');
+      markFieldError(document.getElementById('idCode'));
       return;
     }
     if (selectedType === 'นักศึกษา' && !yearLevel) {
       showMsg('error', 'กรุณาเลือกชั้นปี');
+      markFieldError(document.getElementById('yearLevel'));
       return;
     }
     if (!affiliation) {
       showMsg('error', 'กรุณาเลือกสังกัด/คณะ/หน่วยงาน');
+      markFieldError(document.getElementById('affiliationWrap'));
       return;
     }
     if (!phone) {
       showMsg('error', 'กรุณากรอกเบอร์โทรศัพท์');
+      markFieldError(document.getElementById('phone'));
       return;
     }
     if (!PHONE_RE.test(phone)) {
       showMsg('error', 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก');
+      markFieldError(document.getElementById('phone'));
       return;
     }
     if (!email) {
       showMsg('error', 'กรุณากรอกอีเมล');
+      markFieldError(document.getElementById('email'));
       return;
     }
     if (!EMAIL_RE.test(email)) {
       showMsg('error', 'รูปแบบอีเมลไม่ถูกต้อง');
+      markFieldError(document.getElementById('email'));
       return;
     }
     if (selectedType === 'นักศึกษา') {
       if (!emergencyPhone) {
         showMsg('error', 'กรุณากรอกเบอร์โทรศัพท์ฉุกเฉิน');
+        markFieldError(document.getElementById('emergencyPhone'));
         return;
       }
       if (!PHONE_RE.test(emergencyPhone)) {
         showMsg('error', 'เบอร์โทรศัพท์ฉุกเฉินต้องเป็นตัวเลข 10 หลัก');
+        markFieldError(document.getElementById('emergencyPhone'));
         return;
       }
       if (!parentPhone) {
         showMsg('error', 'กรุณากรอกเบอร์โทรศัพท์ผู้ปกครอง');
+        markFieldError(document.getElementById('parentPhone'));
         return;
       }
       if (!PHONE_RE.test(parentPhone)) {
         showMsg('error', 'เบอร์โทรศัพท์ผู้ปกครองต้องเป็นตัวเลข 10 หลัก');
+        markFieldError(document.getElementById('parentPhone'));
         return;
       }
       if (!advisorId) {
         showMsg('error', 'กรุณาเลือกอาจารย์ที่ปรึกษา');
+        markFieldError(document.getElementById('advisorWrap'));
         return;
       }
     }

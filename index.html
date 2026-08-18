@@ -660,6 +660,9 @@
   });
 
   document.getElementById('typeGroup').addEventListener('click', (e) => {
+    // isEditMode ล็อกไว้ไม่ให้แก้ไข — e.isTrusted แยกคลิกจริงของผู้ใช้ออกจาก btn.click()
+    // ที่ prefillForm() เรียกเองตอนตั้งค่าเริ่มต้น (ต้องปล่อยให้อันนั้นผ่านได้)
+    if (isEditMode && e.isTrusted) return;
     const btn = e.target.closest('.type-btn');
     if (!btn) return;
     document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));

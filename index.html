@@ -132,6 +132,9 @@
   }
   input.locked:focus{box-shadow:none;border-color:var(--border);}
   .lock-note{font-weight:400;color:var(--muted);font-size:12px;}
+  #typeGroup.locked .type-btn{
+    pointer-events:none;opacity:.55;cursor:not-allowed;
+  }
 
   /* ---------- Missing-field highlight ---------- */
   input.field-error, select.field-error{
@@ -302,7 +305,7 @@
     </div>
 
     <form id="regForm" class="hidden">
-      <label>ประเภทผู้ลงทะเบียน <span class="req">*</span></label>
+      <label id="typeLabel">ประเภทผู้ลงทะเบียน <span class="req">*</span></label>
       <div class="type-group" id="typeGroup">
         <div class="type-btn" data-value="นักศึกษา">นักศึกษา</div>
         <div class="type-btn" data-value="อาจารย์">อาจารย์</div>
@@ -375,8 +378,9 @@
   let isEditMode = false;
 
   /**
-   * ตอนแก้ไขข้อมูลที่เคยลงทะเบียนไว้แล้ว ห้ามแก้ "ชื่อ-นามสกุล" และ "รหัสนักศึกษา/รหัสพนักงาน"
-   * (ฟิลด์อื่นแก้ไขได้ทั้งหมด) — ทำเป็น readonly + ใส่คลาส .locked ให้ดูออกว่าแก้ไม่ได้
+   * ตอนแก้ไขข้อมูลที่เคยลงทะเบียนไว้แล้ว ห้ามแก้ "ประเภทผู้ลงทะเบียน" "ชื่อ-นามสกุล"
+   * และ "รหัสนักศึกษา/รหัสพนักงาน" (ฟิลด์อื่นแก้ไขได้ทั้งหมด) — ทำเป็น readonly/ปิดการคลิก
+   * ใส่คลาส .locked ให้ดูออกว่าแก้ไม่ได้
    */
   function setIdentityFieldsLocked(locked) {
     const fullNameInput = document.getElementById('fullName');
@@ -385,11 +389,18 @@
     idCodeInput_.readOnly = locked;
     fullNameInput.classList.toggle('locked', locked);
     idCodeInput_.classList.toggle('locked', locked);
+    document.getElementById('typeGroup').classList.toggle('locked', locked);
   }
 
   function updateFullNameLabel() {
     document.getElementById('fullNameLabel').innerHTML =
       'ชื่อ-นามสกุล <span class="req">*</span>' +
+      (isEditMode ? ' <span class="lock-note">(แก้ไขไม่ได้)</span>' : '');
+  }
+
+  function updateTypeLabel() {
+    document.getElementById('typeLabel').innerHTML =
+      'ประเภทผู้ลงทะเบียน <span class="req">*</span>' +
       (isEditMode ? ' <span class="lock-note">(แก้ไขไม่ได้)</span>' : '');
   }
 
@@ -616,6 +627,7 @@
     isEditMode = true;
     setIdentityFieldsLocked(true);
     updateFullNameLabel();
+    updateTypeLabel();
 
     document.getElementById('fullName').value = data.fullName || '';
     document.getElementById('idCode').value = data.idCode || '';
@@ -811,7 +823,7 @@
         } else {
           showMsg('success', res.message);
           setTimeout(() => {
-            if (liff.isInClient()) liff.closeWindow();
+            location.reload();
           }, 2500);
         }
       })

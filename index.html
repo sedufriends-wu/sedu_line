@@ -107,7 +107,7 @@
     display:block;font-size:13.5px;font-weight:600;
     margin:16px 0 7px;color:var(--text);
   }
-  label:first-of-type{margin-top:2px;}
+  #regForm > label:first-of-type{margin-top:2px;}
   .req{color:var(--primary);}
 
   select, input[type=text], input[type=tel], input[type=email]{
@@ -126,6 +126,28 @@
     box-shadow:0 0 0 4px rgba(184,0,0,.10);
   }
   ::placeholder{color:#b8a8a5;}
+
+  input.locked{
+    background:var(--border);color:var(--muted);cursor:not-allowed;
+  }
+  input.locked:focus{box-shadow:none;border-color:var(--border);}
+  .lock-note{font-weight:400;color:var(--muted);font-size:12px;}
+
+  /* ---------- Searchable select (combobox) ---------- */
+  .ss-wrap{position:relative;}
+  .ss-list{
+    position:absolute;left:0;right:0;top:calc(100% + 6px);
+    background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-md);
+    box-shadow:0 14px 28px -10px rgba(0,0,0,.18);
+    max-height:220px;overflow-y:auto;z-index:30;
+    padding:6px;
+  }
+  .ss-list.hidden{display:none;}
+  .ss-item{
+    padding:11px 13px;font-size:14.5px;border-radius:10px;cursor:pointer;
+  }
+  .ss-item:hover, .ss-item.active{background:var(--primary-light);color:var(--primary-dark);}
+  .ss-empty{padding:11px 13px;font-size:13px;color:var(--muted);}
 
   .type-group{display:flex;gap:10px;}
   .type-btn{
@@ -276,7 +298,7 @@
         <div class="type-btn" data-value="บุคลากร">บุคลากร</div>
       </div>
 
-      <label>ชื่อ-นามสกุล <span class="req">*</span></label>
+      <label id="fullNameLabel">ชื่อ-นามสกุล <span class="req">*</span></label>
       <input type="text" id="fullName" placeholder="เช่น สมชาย ใจดี" required>
 
       <label id="idCodeLabel">รหัสนักศึกษา / รหัสพนักงาน <span class="req">*</span></label>
@@ -284,7 +306,7 @@
 
       <div id="yearLevelWrap">
         <label>ชั้นปี <span class="req">*</span></label>
-        <select id="yearLevel">
+        <select id="yearLevel" required>
           <option value="">-- เลือกชั้นปี --</option>
           <option value="ปีที่ 1">ปีที่ 1</option>
           <option value="ปีที่ 2">ปีที่ 2</option>
@@ -296,28 +318,32 @@
       </div>
 
       <div id="studentExtraWrap">
-        <label>เบอร์โทรศัพท์ฉุกเฉิน</label>
-        <input type="tel" id="emergencyPhone" inputmode="numeric" maxlength="10" placeholder="เบอร์ 10 หลัก">
+        <label>เบอร์โทรศัพท์ฉุกเฉิน <span class="req">*</span></label>
+        <input type="tel" id="emergencyPhone" inputmode="numeric" maxlength="10" placeholder="เบอร์ 10 หลัก" required>
 
-        <label>เบอร์โทรศัพท์ผู้ปกครอง</label>
-        <input type="tel" id="parentPhone" inputmode="numeric" maxlength="10" placeholder="เบอร์ 10 หลัก">
+        <label>เบอร์โทรศัพท์ผู้ปกครอง <span class="req">*</span></label>
+        <input type="tel" id="parentPhone" inputmode="numeric" maxlength="10" placeholder="เบอร์ 10 หลัก" required>
 
-        <label>อาจารย์ที่ปรึกษา</label>
-        <select id="advisorSelect">
-          <option value="">-- เลือกอาจารย์ที่ปรึกษา --</option>
-        </select>
+        <label>อาจารย์ที่ปรึกษา <span class="req">*</span></label>
+        <div class="ss-wrap" id="advisorWrap">
+          <input type="text" id="advisorInput" placeholder="พิมพ์เพื่อค้นหาอาจารย์ที่ปรึกษา" autocomplete="off">
+          <input type="hidden" id="advisorSelect">
+          <div class="ss-list hidden" id="advisorList"></div>
+        </div>
       </div>
 
-      <label>สังกัด / คณะ / หน่วยงาน</label>
-      <select id="affiliation">
-        <option value="">-- เลือกสังกัด/คณะ/หน่วยงาน --</option>
-      </select>
+      <label>สังกัด / คณะ / หน่วยงาน <span class="req">*</span></label>
+      <div class="ss-wrap" id="affiliationWrap">
+        <input type="text" id="affiliationInput" placeholder="พิมพ์เพื่อค้นหาสังกัด/คณะ/หน่วยงาน" autocomplete="off">
+        <input type="hidden" id="affiliation">
+        <div class="ss-list hidden" id="affiliationList"></div>
+      </div>
 
-      <label>เบอร์โทรศัพท์</label>
-      <input type="tel" id="phone" placeholder="08x-xxx-xxxx">
+      <label>เบอร์โทรศัพท์ <span class="req">*</span></label>
+      <input type="tel" id="phone" inputmode="numeric" maxlength="10" placeholder="เบอร์ 10 หลัก" required>
 
-      <label>อีเมล</label>
-      <input type="email" id="email" placeholder="name@example.com">
+      <label>อีเมล <span class="req">*</span></label>
+      <input type="email" id="email" placeholder="name@example.com" required>
 
       <button type="submit" id="submitBtn">ลงทะเบียน</button>
       <div id="msgBox" class="msg"></div>
@@ -335,6 +361,103 @@
   let selectedType = "";
   let resolved = false;
   let formOptions = { advisors: [], departments: [] };
+  let isEditMode = false;
+
+  /**
+   * ตอนแก้ไขข้อมูลที่เคยลงทะเบียนไว้แล้ว ห้ามแก้ "ชื่อ-นามสกุล" และ "รหัสนักศึกษา/รหัสพนักงาน"
+   * (ฟิลด์อื่นแก้ไขได้ทั้งหมด) — ทำเป็น readonly + ใส่คลาส .locked ให้ดูออกว่าแก้ไม่ได้
+   */
+  function setIdentityFieldsLocked(locked) {
+    const fullNameInput = document.getElementById('fullName');
+    const idCodeInput_ = document.getElementById('idCode');
+    fullNameInput.readOnly = locked;
+    idCodeInput_.readOnly = locked;
+    fullNameInput.classList.toggle('locked', locked);
+    idCodeInput_.classList.toggle('locked', locked);
+  }
+
+  function updateFullNameLabel() {
+    document.getElementById('fullNameLabel').innerHTML =
+      'ชื่อ-นามสกุล <span class="req">*</span>' +
+      (isEditMode ? ' <span class="lock-note">(แก้ไขไม่ได้)</span>' : '');
+  }
+
+  function updateIdCodeLabel() {
+    const base = selectedType === 'นักศึกษา' ? 'รหัสนักศึกษา' : 'รหัสพนักงาน/รหัสประจำตัว';
+    document.getElementById('idCodeLabel').innerHTML =
+      base + ' <span class="req">*</span>' +
+      (isEditMode ? ' <span class="lock-note">(แก้ไขไม่ได้)</span>' : '');
+  }
+
+  /**
+   * สร้าง select แบบพิมพ์ค้นหาได้ (combobox) จาก input + hidden input + กล่องรายการ
+   * เก็บ "ค่า" ไว้ใน hidden input และ "ข้อความที่แสดง" ไว้ใน input ที่มองเห็น
+   * ต้องเลือกจากรายการเท่านั้นถึงจะมีค่า — พิมพ์เฉยๆ ไม่ตรงกับตัวเลือกจะไม่ถือว่ากรอกแล้ว
+   */
+  function setupSearchableSelect(opts) {
+    const input = document.getElementById(opts.inputId);
+    const hidden = document.getElementById(opts.hiddenId);
+    const list = document.getElementById(opts.listId);
+
+    function renderList(filter) {
+      const items = opts.getItems();
+      const q = (filter || '').trim();
+      const filtered = q ? items.filter(it => it.text.indexOf(q) > -1) : items;
+      list.innerHTML = '';
+      if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'ss-empty';
+        empty.textContent = 'ไม่พบข้อมูล';
+        list.appendChild(empty);
+      } else {
+        filtered.forEach(it => {
+          const row = document.createElement('div');
+          row.className = 'ss-item';
+          row.textContent = it.text;
+          row.addEventListener('mousedown', function (e) {
+            e.preventDefault(); // กัน input เสีย focus ก่อน click จะทำงาน
+            hidden.value = it.value;
+            input.value = it.text;
+            closeList();
+          });
+          list.appendChild(row);
+        });
+      }
+      list.classList.remove('hidden');
+    }
+
+    function closeList() {
+      list.classList.add('hidden');
+    }
+
+    input.addEventListener('focus', function () { renderList(input.value); });
+    input.addEventListener('input', function () {
+      hidden.value = ''; // พิมพ์ใหม่ = ยังไม่ได้เลือก ต้องเลือกจาก list เท่านั้น
+      renderList(input.value);
+    });
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        closeList();
+        if (!hidden.value) input.value = '';
+      }, 150);
+    });
+
+    return {
+      setValue: function (value, text) {
+        hidden.value = value || '';
+        input.value = text || '';
+      }
+    };
+  }
+
+  const advisorCombo = setupSearchableSelect({
+    inputId: 'advisorInput', hiddenId: 'advisorSelect', listId: 'advisorList',
+    getItems: () => (formOptions.advisors || []).map(a => ({ value: a.personId, text: a.name }))
+  });
+  const affiliationCombo = setupSearchableSelect({
+    inputId: 'affiliationInput', hiddenId: 'affiliation', listId: 'affiliationList',
+    getItems: () => (formOptions.departments || []).map(d => ({ value: d, text: d }))
+  });
 
   function setStep(text) {
     const el = document.getElementById('stepText');
@@ -459,50 +582,37 @@
     };
   }
 
-  function populateSelect(selectEl, options, placeholder) {
-    selectEl.innerHTML = '';
-    const ph = document.createElement('option');
-    ph.value = '';
-    ph.textContent = placeholder;
-    selectEl.appendChild(ph);
-    options.forEach(opt => {
-      const o = document.createElement('option');
-      o.value = opt.value;
-      o.textContent = opt.text;
-      selectEl.appendChild(o);
-    });
-  }
-
   function applyFormOptions(opts) {
     formOptions = opts || { advisors: [], departments: [] };
-    populateSelect(
-      document.getElementById('advisorSelect'),
-      (formOptions.advisors || []).map(a => ({ value: a.personId, text: a.name })),
-      '-- เลือกอาจารย์ที่ปรึกษา --'
-    );
-    populateSelect(
-      document.getElementById('affiliation'),
-      (formOptions.departments || []).map(d => ({ value: d, text: d })),
-      '-- เลือกสังกัด/คณะ/หน่วยงาน --'
-    );
   }
 
   function prefillForm(data) {
+    isEditMode = true;
+    setIdentityFieldsLocked(true);
+    updateFullNameLabel();
+
     document.getElementById('fullName').value = data.fullName || '';
     document.getElementById('idCode').value = data.idCode || '';
-    document.getElementById('affiliation').value = data.affiliation || '';
     document.getElementById('phone').value = data.phone || '';
     document.getElementById('email').value = data.email || '';
     document.getElementById('yearLevel').value = data.yearLevel || '';
     document.getElementById('emergencyPhone').value = data.emergencyPhone || '';
     document.getElementById('parentPhone').value = data.parentPhone || '';
-    document.getElementById('advisorSelect').value = data.advisorId || '';
+    affiliationCombo.setValue(data.affiliation || '', data.affiliation || '');
+    advisorCombo.setValue(data.advisorId || '', data.advisorName || '');
 
     if (data.userType) {
       const btn = document.querySelector('.type-btn[data-value="' + data.userType + '"]');
       if (btn) btn.click();
     }
   }
+
+  const idCodeInput = document.getElementById('idCode');
+  idCodeInput.addEventListener('input', function () {
+    if (selectedType === 'นักศึกษา') {
+      idCodeInput.value = idCodeInput.value.replace(/[^0-9]/g, '');
+    }
+  });
 
   document.getElementById('typeGroup').addEventListener('click', (e) => {
     const btn = e.target.closest('.type-btn');
@@ -513,16 +623,17 @@
 
     const yearWrap = document.getElementById('yearLevelWrap');
     const studentExtraWrap = document.getElementById('studentExtraWrap');
-    const idLabel = document.getElementById('idCodeLabel');
     if (selectedType === 'นักศึกษา') {
       yearWrap.style.display = 'block';
       studentExtraWrap.style.display = 'block';
-      idLabel.innerHTML = 'รหัสนักศึกษา <span class="req">*</span>';
+      idCodeInput.setAttribute('inputmode', 'numeric');
+      idCodeInput.value = idCodeInput.value.replace(/[^0-9]/g, '');
     } else {
       yearWrap.style.display = 'none';
       studentExtraWrap.style.display = 'none';
-      idLabel.innerHTML = 'รหัสพนักงาน/รหัสประจำตัว <span class="req">*</span>';
+      idCodeInput.removeAttribute('inputmode');
     }
+    updateIdCodeLabel();
   });
 
   document.getElementById('regForm').addEventListener('submit', function(e) {
@@ -541,34 +652,90 @@
       return;
     }
 
+    const PHONE_RE = /^[0-9]{10}$/;
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const fullName = document.getElementById('fullName').value.trim();
+    const idCode = document.getElementById('idCode').value.trim();
+    const yearLevel = document.getElementById('yearLevel').value;
+    const affiliation = document.getElementById('affiliation').value;
+    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
     const emergencyPhone = document.getElementById('emergencyPhone').value.trim();
     const parentPhone = document.getElementById('parentPhone').value.trim();
+    const advisorId = document.getElementById('advisorSelect').value;
+    const advisorName = document.getElementById('advisorInput').value.trim();
+
+    if (!fullName) {
+      showMsg('error', 'กรุณากรอกชื่อ-นามสกุล');
+      return;
+    }
+    if (!idCode) {
+      showMsg('error', 'กรุณากรอก' + (selectedType === 'นักศึกษา' ? 'รหัสนักศึกษา' : 'รหัสพนักงาน/รหัสประจำตัว'));
+      return;
+    }
+    if (selectedType === 'นักศึกษา' && !/^[0-9]+$/.test(idCode)) {
+      showMsg('error', 'รหัสนักศึกษาต้องกรอกเป็นตัวเลขเท่านั้น');
+      return;
+    }
+    if (selectedType === 'นักศึกษา' && !yearLevel) {
+      showMsg('error', 'กรุณาเลือกชั้นปี');
+      return;
+    }
+    if (!affiliation) {
+      showMsg('error', 'กรุณาเลือกสังกัด/คณะ/หน่วยงาน');
+      return;
+    }
+    if (!phone) {
+      showMsg('error', 'กรุณากรอกเบอร์โทรศัพท์');
+      return;
+    }
+    if (!PHONE_RE.test(phone)) {
+      showMsg('error', 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก');
+      return;
+    }
+    if (!email) {
+      showMsg('error', 'กรุณากรอกอีเมล');
+      return;
+    }
+    if (!EMAIL_RE.test(email)) {
+      showMsg('error', 'รูปแบบอีเมลไม่ถูกต้อง');
+      return;
+    }
     if (selectedType === 'นักศึกษา') {
-      if (emergencyPhone && !/^[0-9]{10}$/.test(emergencyPhone)) {
+      if (!emergencyPhone) {
+        showMsg('error', 'กรุณากรอกเบอร์โทรศัพท์ฉุกเฉิน');
+        return;
+      }
+      if (!PHONE_RE.test(emergencyPhone)) {
         showMsg('error', 'เบอร์โทรศัพท์ฉุกเฉินต้องเป็นตัวเลข 10 หลัก');
         return;
       }
-      if (parentPhone && !/^[0-9]{10}$/.test(parentPhone)) {
+      if (!parentPhone) {
+        showMsg('error', 'กรุณากรอกเบอร์โทรศัพท์ผู้ปกครอง');
+        return;
+      }
+      if (!PHONE_RE.test(parentPhone)) {
         showMsg('error', 'เบอร์โทรศัพท์ผู้ปกครองต้องเป็นตัวเลข 10 หลัก');
         return;
       }
+      if (!advisorId) {
+        showMsg('error', 'กรุณาเลือกอาจารย์ที่ปรึกษา');
+        return;
+      }
     }
-
-    const advisorSelect = document.getElementById('advisorSelect');
-    const advisorId = advisorSelect.value;
-    const advisorName = advisorSelect.selectedIndex > 0 ? advisorSelect.options[advisorSelect.selectedIndex].text : '';
 
     const data = {
       lineUserId: userProfile.userId,
       displayName: userProfile.displayName,
       pictureUrl: userProfile.pictureUrl,
       userType: selectedType,
-      fullName: document.getElementById('fullName').value.trim(),
-      idCode: document.getElementById('idCode').value.trim(),
-      yearLevel: document.getElementById('yearLevel').value,
-      affiliation: document.getElementById('affiliation').value,
-      phone: document.getElementById('phone').value.trim(),
-      email: document.getElementById('email').value.trim(),
+      fullName: fullName,
+      idCode: idCode,
+      yearLevel: yearLevel,
+      affiliation: affiliation,
+      phone: phone,
+      email: email,
       emergencyPhone: emergencyPhone,
       parentPhone: parentPhone,
       advisorId: advisorId,

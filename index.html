@@ -404,10 +404,15 @@
       (isEditMode ? ' <span class="lock-note">(แก้ไขไม่ได้)</span>' : '');
   }
 
+  function idCodeDigits() {
+    return selectedType === 'นักศึกษา' ? 8 : 10;
+  }
+
   function updateIdCodeLabel() {
     const base = selectedType === 'นักศึกษา' ? 'รหัสนักศึกษา' : 'รหัสพนักงาน/รหัสประจำตัว';
+    const hint = selectedType ? ' (' + idCodeDigits() + ' หลัก)' : '';
     document.getElementById('idCodeLabel').innerHTML =
-      base + ' <span class="req">*</span>' +
+      base + hint + ' <span class="req">*</span>' +
       (isEditMode ? ' <span class="lock-note">(แก้ไขไม่ได้)</span>' : '');
   }
 
@@ -654,8 +659,8 @@
 
   const idCodeInput = document.getElementById('idCode');
   idCodeInput.addEventListener('input', function () {
-    if (selectedType === 'นักศึกษา') {
-      idCodeInput.value = idCodeInput.value.replace(/[^0-9]/g, '');
+    if (selectedType) {
+      idCodeInput.value = idCodeInput.value.replace(/[^0-9]/g, '').slice(0, idCodeDigits());
     }
   });
 
@@ -675,13 +680,14 @@
     if (selectedType === 'นักศึกษา') {
       yearWrap.style.display = 'block';
       studentExtraWrap.style.display = 'block';
-      idCodeInput.setAttribute('inputmode', 'numeric');
-      idCodeInput.value = idCodeInput.value.replace(/[^0-9]/g, '');
     } else {
       yearWrap.style.display = 'none';
       studentExtraWrap.style.display = 'none';
-      idCodeInput.removeAttribute('inputmode');
     }
+    idCodeInput.setAttribute('inputmode', 'numeric');
+    idCodeInput.setAttribute('maxlength', idCodeDigits());
+    idCodeInput.setAttribute('placeholder', 'กรอกรหัส ' + idCodeDigits() + ' หลัก');
+    idCodeInput.value = idCodeInput.value.replace(/[^0-9]/g, '').slice(0, idCodeDigits());
     updateIdCodeLabel();
   });
 
@@ -727,8 +733,9 @@
       markFieldError(document.getElementById('idCode'));
       return;
     }
-    if (selectedType === 'นักศึกษา' && !/^[0-9]+$/.test(idCode)) {
-      showMsg('error', 'รหัสนักศึกษาต้องกรอกเป็นตัวเลขเท่านั้น');
+    if (!new RegExp('^[0-9]{' + idCodeDigits() + '}$').test(idCode)) {
+      showMsg('error', (selectedType === 'นักศึกษา' ? 'รหัสนักศึกษา' : 'รหัสพนักงาน/รหัสประจำตัว') +
+        'ต้องเป็นตัวเลข ' + idCodeDigits() + ' หลักเท่านั้น');
       markFieldError(document.getElementById('idCode'));
       return;
     }

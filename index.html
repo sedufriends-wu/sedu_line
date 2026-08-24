@@ -657,6 +657,12 @@
     el.addEventListener('change', () => el.classList.remove('field-error'));
   });
 
+  // ก่อนเลือกประเภทผู้ลงทะเบียน ฟิลด์เฉพาะนักศึกษาจะถูกซ่อนไว้ (ดูเหตุผลที่ปลด required
+  // ในตัวจัดการคลิกของ #typeGroup ด้านล่าง) — ต้องปลดตั้งแต่โหลดหน้าด้วยเช่นกัน
+  document.getElementById('yearLevel').required = false;
+  document.getElementById('emergencyPhone').required = false;
+  document.getElementById('parentPhone').required = false;
+
   const idCodeInput = document.getElementById('idCode');
   idCodeInput.addEventListener('input', function () {
     if (selectedType) {
@@ -677,13 +683,21 @@
 
     const yearWrap = document.getElementById('yearLevelWrap');
     const studentExtraWrap = document.getElementById('studentExtraWrap');
-    if (selectedType === 'นักศึกษา') {
+    const isStudentType = selectedType === 'นักศึกษา';
+    if (isStudentType) {
       yearWrap.style.display = 'block';
       studentExtraWrap.style.display = 'block';
     } else {
       yearWrap.style.display = 'none';
       studentExtraWrap.style.display = 'none';
     }
+    // ต้องปลด required ออกจากฟิลด์ที่ซ่อนด้วย ไม่ใช่แค่ซ่อนด้วย CSS —
+    // บาง WebView (เช่น in-app browser ของ LINE) ไม่ตัดฟิลด์ required ที่ display:none
+    // ออกจากการตรวจสอบของเบราว์เซอร์เอง ทำให้ฟอร์มของอาจารย์/บุคลากรกด "ลงทะเบียน"
+    // แล้วไม่มีปฏิกิริยาใดๆ เลย (เบราว์เซอร์บล็อกไว้ก่อนถึง JS submit handler)
+    document.getElementById('yearLevel').required = isStudentType;
+    document.getElementById('emergencyPhone').required = isStudentType;
+    document.getElementById('parentPhone').required = isStudentType;
     idCodeInput.setAttribute('inputmode', 'numeric');
     idCodeInput.setAttribute('maxlength', idCodeDigits());
     idCodeInput.setAttribute('placeholder', 'กรอกรหัส ' + idCodeDigits() + ' หลัก');
